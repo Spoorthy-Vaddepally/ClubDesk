@@ -1,0 +1,37 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Allow public read access to the club directory
+    match /clubs/{clubId} {
+      allow read: if true;
+      // Allow authenticated users to create clubs, and owners to update/delete
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null && request.auth.uid == clubId;
+    }
+    
+    // Allow public read access to the users collection
+    match /users/{userId} {
+      allow read: if true;
+      // Allow authenticated users to create user profiles, and owners to update/delete
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Club events - members can read, club heads can write
+    match /clubs/{clubId}/events/{eventId} {
+      allow read: if true;
+      allow create, update, delete: if request.auth != null && request.auth.uid == clubId;
+    }
+    
+    // User certificates - users can read their own
+    match /users/{userId}/certificates/{certificateId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow create, update, delete: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Allow authenticated users to access other collections
+    match /{document=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}
