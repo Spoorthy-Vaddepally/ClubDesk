@@ -104,30 +104,6 @@ const LandingPage = () => {
               >
                 Testimonials
               </motion.a>
-              <motion.a 
-                href="/clear-data" 
-                className="text-gray-700 hover:text-primary-600 px-3 py-2 text-sm font-medium transition-colors"
-                whileHover={{ y: -2 }}
-                transition={{ type: "spring", stiffness: 400 }}
-              >
-                Clear Data
-              </motion.a>
-              <motion.a 
-                href="/register-example-data" 
-                className="text-gray-700 hover:text-primary-600 px-3 py-2 text-sm font-medium transition-colors"
-                whileHover={{ y: -2 }}
-                transition={{ type: "spring", stiffness: 400 }}
-              >
-                Register Example Data
-              </motion.a>
-              <motion.a 
-                href="/add-missing-data" 
-                className="text-gray-700 hover:text-primary-600 px-3 py-2 text-sm font-medium transition-colors"
-                whileHover={{ y: -2 }}
-                transition={{ type: "spring", stiffness: 400 }}
-              >
-                Add Missing Data
-              </motion.a>
               <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
                 <Link to="/login" className="text-primary-600 hover:text-primary-700 px-3 py-2 text-sm font-medium">Login</Link>
               </motion.div>
@@ -152,24 +128,6 @@ const LandingPage = () => {
                 className="bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white px-4 py-2 rounded-md text-sm font-medium shadow-md mr-2"
               >
                 Sign Up
-              </Link>
-              <Link 
-                to="/clear-data" 
-                className="text-primary-600 hover:text-primary-700 px-3 py-2 text-sm font-medium mr-2"
-              >
-                Clear
-              </Link>
-              <Link 
-                to="/register-example-data" 
-                className="text-primary-600 hover:text-primary-700 px-3 py-2 text-sm font-medium mr-2"
-              >
-                Register
-              </Link>
-              <Link 
-                to="/add-missing-data" 
-                className="text-primary-600 hover:text-primary-700 px-3 py-2 text-sm font-medium"
-              >
-                Add Data
               </Link>
             </div>
           </div>

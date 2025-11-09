@@ -9,9 +9,6 @@ import StudentLayout from './layouts/StudentLayout';
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
-import ClearDataPage from './pages/ClearDataPage';
-import RegisterExampleDataPage from './pages/RegisterExampleDataPage';
-import AddMissingDataPage from './pages/AddMissingDataPage';
 
 import ClubHeadDashboard from './pages/club-head/Dashboard';
 import MembersManagement from './pages/club-head/MembersManagement';
@@ -81,9 +78,6 @@ function App() {
         <Routes location={location} key={location.pathname}>
           {/* Public Routes */}
           <Route path="/" element={<LandingPage />} />
-          <Route path="/clear-data" element={<ClearDataPage />} />
-          <Route path="/register-example-data" element={<RegisterExampleDataPage />} />
-          <Route path="/add-missing-data" element={<AddMissingDataPage />} />
           <Route element={<AuthLayout />}>
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
