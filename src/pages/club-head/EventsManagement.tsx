@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { 
   Calendar,
   Search,
@@ -14,75 +14,80 @@ import {
   Edit,
   Trash2
 } from 'lucide-react';
+import { db } from '../../firebase';
+import { collection, getDocs, query, where, doc, getDoc, addDoc } from 'firebase/firestore';
+import { useAuth } from '../../contexts/AuthContext';
 
-// Mock data
-const events = [
-  {
-    id: 1,
-    name: 'Tech Workshop: React Basics',
-    date: '2025-04-15',
-    time: '15:00 - 17:00',
-    location: 'Engineering Building, Room 201',
-    type: 'Workshop',
-    status: 'upcoming',
-    capacity: 30,
-    registered: 24,
-    image: 'https://images.pexels.com/photos/7988079/pexels-photo-7988079.jpeg'
-  },
-  {
-    id: 2,
-    name: 'Monthly Club Meeting',
-    date: '2025-04-20',
-    time: '18:00 - 19:30',
-    location: 'Student Center, Room 102',
-    type: 'Meeting',
-    status: 'upcoming',
-    capacity: 50,
-    registered: 45,
-    image: 'https://images.pexels.com/photos/3183150/pexels-photo-3183150.jpeg'
-  },
-  {
-    id: 3,
-    name: 'Industry Expert Talk',
-    date: '2025-04-25',
-    time: '14:00 - 16:00',
-    location: 'Virtual Meeting',
-    type: 'Talk',
-    status: 'upcoming',
-    capacity: 100,
-    registered: 72,
-    image: 'https://images.pexels.com/photos/2173508/pexels-photo-2173508.jpeg'
-  },
-  {
-    id: 4,
-    name: 'Coding Competition',
-    date: '2025-03-15',
-    time: '10:00 - 17:00',
-    location: 'Computer Lab',
-    type: 'Competition',
-    status: 'completed',
-    capacity: 40,
-    registered: 38,
-    image: 'https://images.pexels.com/photos/3861958/pexels-photo-3861958.jpeg'
-  },
-  {
-    id: 5,
-    name: 'Tech Networking Night',
-    date: '2025-03-10',
-    time: '19:00 - 21:00',
-    location: 'Student Center Ballroom',
-    type: 'Networking',
-    status: 'completed',
-    capacity: 75,
-    registered: 65,
-    image: 'https://images.pexels.com/photos/2962135/pexels-photo-2962135.jpeg'
-  }
-];
+interface Event {
+  id: string;
+  name: string;
+  date: string;
+  time: string;
+  location: string;
+  type: string;
+  status: 'upcoming' | 'completed';
+  capacity: number;
+  registered: number;
+  image?: string;
+}
 
 const EventsManagement = () => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const [events, setEvents] = useState<Event[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
+  const [loading, setLoading] = useState(true);
+
+  // Fetch events data from Firebase
+  useEffect(() => {
+    const fetchEvents = async () => {
+      if (!user) return;
+      
+      setLoading(true);
+      try {
+        // Fetch events from the events subcollection
+        const eventsRef = collection(db, 'clubs', user.uid, 'events');
+        const eventsSnapshot = await getDocs(eventsRef);
+        
+        const eventsData: Event[] = [];
+        
+        eventsSnapshot.forEach((doc) => {
+          const data = doc.data();
+          const eventDate = new Date(data.date);
+          const today = new Date();
+          console.log(`Event: ${data.name || 'Untitled Event'}`);
+          console.log(`Today: ${today}`);
+          console.log(`Event Date: ${eventDate}`);
+          console.log(`Event Date >= Today: ${eventDate >= today}`);
+          const status = eventDate >= today ? 'upcoming' : 'completed';
+          console.log(`Status: ${status}`);
+          
+          eventsData.push({
+            id: doc.id,
+            name: data.name || 'Untitled Event',
+            date: data.date || '',
+            time: data.time || 'TBD',
+            location: data.location || 'TBD',
+            type: data.type || 'General',
+            status: status,
+            capacity: data.capacity || 0,
+            registered: data.registered || 0,
+            image: data.image || ''
+          });
+        });
+        
+        setEvents(eventsData);
+      } catch (error) {
+        console.error('Error fetching events:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchEvents();
+  }, [user]);
 
   // Filter events
   const filteredEvents = events
@@ -93,6 +98,87 @@ const EventsManagement = () => {
       const matchesType = typeFilter === 'all' || event.type === typeFilter;
       return matchesSearch && matchesStatus && matchesType;
     });
+
+  const handleSendNotification = async () => {
+    if (!user) return;
+    
+    try {
+      // Get all club members
+      const membersRef = collection(db, 'clubs', user.uid, 'members');
+      const membersSnapshot = await getDocs(membersRef);
+      
+      if (membersSnapshot.empty) {
+        alert('No members found to notify.');
+        return;
+      }
+      
+      // Create a notification for all members
+      const notificationData = {
+        title: 'New Event Announcement',
+        message: 'A new event has been created by your club. Check it out!',
+        sender: user.name || 'Club Head',
+        senderId: user.uid,
+        timestamp: new Date(),
+        read: false,
+        type: 'event_announcement'
+      };
+      
+      // Send notification to each member with improved error handling
+      const notificationPromises = membersSnapshot.docs.map(async (doc) => {
+        const memberData = doc.data();
+        try {
+          // Try multiple approaches to send notification
+          // Approach 1: Use userId field if available
+          if (memberData.userId) {
+            await addDoc(collection(db, 'users', memberData.userId, 'notifications'), notificationData);
+            return;
+          }
+          
+          // Approach 2: Use doc.id as userId if userId field is not available
+          if (doc.id) {
+            await addDoc(collection(db, 'users', doc.id, 'notifications'), notificationData);
+            return;
+          }
+          
+          // Approach 3: Try to find user by email
+          if (memberData.email) {
+            try {
+              const usersRef = collection(db, 'users');
+              const q = query(usersRef, where('email', '==', memberData.email));
+              const userSnapshot = await getDocs(q);
+              
+              if (!userSnapshot.empty) {
+                const userId = userSnapshot.docs[0].id;
+                await addDoc(collection(db, 'users', userId, 'notifications'), notificationData);
+                return;
+              }
+            } catch (emailError) {
+              console.error('Error finding user by email:', memberData.email, emailError);
+            }
+          }
+          
+          // If all approaches fail, log the issue
+          console.warn('Could not send notification to member:', memberData);
+        } catch (error) {
+          console.error('Error sending notification to member:', memberData, error);
+        }
+      });
+      
+      await Promise.all(notificationPromises);
+      alert('Notifications sent to all club members!');
+    } catch (error) {
+      console.error('Error sending notifications:', error);
+      alert('Failed to send notifications. Please try again.');
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
@@ -111,6 +197,7 @@ const EventsManagement = () => {
             Create Event
           </Link>
           <button
+            onClick={handleSendNotification}
             className="inline-flex items-center justify-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
           >
             <Bell size={16} className="mr-2" />
@@ -179,89 +266,121 @@ const EventsManagement = () => {
 
       {/* Events Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredEvents.map((event) => (
-          <motion.div
-            key={event.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}
-            className="bg-white rounded-xl shadow-sm overflow-hidden hover:shadow-md transition-shadow duration-300"
-          >
-            <div className="relative h-48">
-              <img 
-                src={event.image} 
-                alt={event.name} 
-                className="w-full h-full object-cover"
-              />
-              <div className="absolute top-4 right-4">
-                <div className={`px-2 py-1 rounded-full text-xs font-medium ${
-                  event.status === 'upcoming' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                }`}>
-                  {event.status.charAt(0).toUpperCase() + event.status.slice(1)}
-                </div>
-              </div>
+        {filteredEvents.length === 0 ? (
+          <div className="col-span-full text-center py-12">
+            <Calendar size={48} className="mx-auto text-gray-400" />
+            <h3 className="mt-4 text-lg font-medium text-gray-900">No events found</h3>
+            <p className="mt-1 text-gray-500">Create your first event to get started.</p>
+            <div className="mt-6">
+              <Link
+                to="/club-head/events/create"
+                className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700"
+              >
+                <Plus size={16} className="mr-2" />
+                Create Event
+              </Link>
             </div>
-            
-            <div className="p-6">
-              <div className="flex justify-between items-start">
-                <h3 className="text-lg font-semibold text-gray-900">{event.name}</h3>
-                <button className="text-gray-400 hover:text-gray-500">
-                  <MoreVertical size={16} />
-                </button>
-              </div>
-              
-              <div className="mt-4 space-y-3">
-                <div className="flex items-center text-gray-500">
-                  <Calendar size={16} className="mr-2" />
-                  <span>{new Date(event.date).toLocaleDateString('en-US', {
-                    weekday: 'short',
-                    month: 'short',
-                    day: 'numeric'
-                  })}</span>
+          </div>
+        ) : (
+          filteredEvents.map((event) => {
+            return (
+              <motion.div
+                key={event.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+                className="bg-white rounded-xl shadow-sm overflow-hidden"
+              >
+                <div className="relative">
+                  {event.image ? (
+                    <img 
+                      src={event.image} 
+                      alt={event.name} 
+                      className="w-full h-48 object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-48 bg-gradient-to-r from-primary-500 to-purple-600 flex items-center justify-center">
+                      <Calendar size={48} className="text-white" />
+                    </div>
+                  )}
+                  <div className="absolute top-4 right-4">
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                      event.status === 'upcoming' 
+                        ? 'bg-green-100 text-green-800' 
+                        : 'bg-gray-100 text-gray-800'
+                    }`}>
+                      {event.status}
+                    </span>
+                  </div>
                 </div>
-                <div className="flex items-center text-gray-500">
-                  <Clock size={16} className="mr-2" />
-                  <span>{event.time}</span>
+                
+                <div className="p-6">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900">{event.name}</h3>
+                      <p className="text-sm text-gray-500">{event.type}</p>
+                    </div>
+                    <button className="text-gray-400 hover:text-gray-600">
+                      <MoreVertical size={20} />
+                    </button>
+                  </div>
+                  
+                  <div className="mt-4 space-y-2">
+                    <div className="flex items-center text-gray-500">
+                      <Calendar size={16} className="mr-2" />
+                      <span className="text-sm">
+                        {event.date ? new Date(event.date).toLocaleDateString() : 'Date not set'}
+                      </span>
+                    </div>
+                    <div className="flex items-center text-gray-500">
+                      <Clock size={16} className="mr-2" />
+                      <span className="text-sm">{event.time}</span>
+                    </div>
+                    <div className="flex items-center text-gray-500">
+                      <MapPin size={16} className="mr-2" />
+                      <span className="text-sm">{event.location}</span>
+                    </div>
+                    <div className="flex items-center text-gray-500">
+                      <Users size={16} className="mr-2" />
+                      <span className="text-sm">{event.registered}/{event.capacity} registered</span>
+                    </div>
+                  </div>
+                  
+                  <div className="mt-4">
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div 
+                        className={`h-2 rounded-full ${
+                          event.capacity > 0 && event.registered >= event.capacity 
+                            ? 'bg-red-500' 
+                            : event.registered / event.capacity > 0.7 
+                              ? 'bg-yellow-500' 
+                              : 'bg-green-500'
+                        }`}
+                        style={{ 
+                          width: event.capacity > 0 
+                            ? `${Math.min((event.registered / event.capacity) * 100, 100)}%` 
+                            : '0%' 
+                        }}
+                      ></div>
+                    </div>
+                  </div>
+                  
+                  <div className="mt-6 flex space-x-3">
+                    <Link
+                      to={`/club/events/${event.id}`}
+                      onClick={() => console.log('View event clicked, ID:', event.id)}
+                      className="flex-1 inline-flex items-center justify-center px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+                    >
+                      <Calendar size={16} className="mr-1" />
+                      View
+                    </Link>
+                  </div>
+
                 </div>
-                <div className="flex items-center text-gray-500">
-                  <MapPin size={16} className="mr-2" />
-                  <span>{event.location}</span>
-                </div>
-                <div className="flex items-center text-gray-500">
-                  <Users size={16} className="mr-2" />
-                  <span>{event.registered} / {event.capacity} registered</span>
-                </div>
-              </div>
-              
-              <div className="mt-4">
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div 
-                    className={`h-2 rounded-full ${
-                      (event.registered / event.capacity) > 0.9 ? 'bg-red-500' :
-                      (event.registered / event.capacity) > 0.7 ? 'bg-yellow-500' :
-                      'bg-green-500'
-                    }`}
-                    style={{ width: `${(event.registered / event.capacity) * 100}%` }}
-                  ></div>
-                </div>
-              </div>
-              
-              <div className="mt-6 flex space-x-3">
-                <button className="flex-1 inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700">
-                  <Edit size={16} className="mr-2" />
-                  Edit
-                </button>
-                <button className="flex-1 inline-flex items-center justify-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
-                  <Bell size={16} className="mr-2" />
-                  Notify
-                </button>
-                <button className="inline-flex items-center justify-center p-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-red-600 bg-white hover:bg-gray-50">
-                  <Trash2 size={16} />
-                </button>
-              </div>
-            </div>
-          </motion.div>
-        ))}
+              </motion.div>
+            );
+          })
+        )}
       </div>
     </div>
   );

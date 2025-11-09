@@ -23,7 +23,7 @@ const AuthLayout = () => {
 
   return (
     <div className="min-h-screen flex flex-col md:flex-row">
-      {/* Left side - Decorative */}
+      {/* Left side - Decorative (centered content, no scrolling) */}
       <motion.div 
         className="hidden md:flex md:w-1/2 bg-gradient-to-br from-primary-800 to-primary-600 text-white p-12 flex-col justify-center items-center relative overflow-hidden"
         initial={{ opacity: 0, x: -100 }}
@@ -51,9 +51,10 @@ const AuthLayout = () => {
           transition={{ delay: 1.5 }}
         />
         
-        <div className="max-w-md mx-auto relative z-10">
+        {/* Centered content container */}
+        <div className="max-w-md mx-auto relative z-10 flex flex-col items-center text-center">
           <motion.div 
-            className="flex items-center mb-8"
+            className="flex items-center justify-center mb-8"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.3 }}
@@ -69,7 +70,7 @@ const AuthLayout = () => {
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.8, delay: 0.5 }}
             >
-              ClubConnect
+              ClubDesk
             </motion.h1>
           </motion.div>
           
@@ -100,7 +101,7 @@ const AuthLayout = () => {
             ].map((feature, index) => (
               <motion.div 
                 key={index} 
-                className="flex items-center"
+                className="flex items-center justify-center"
                 initial={{ opacity: 0, x: -30 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.5, delay: 1.1 + (index * 0.2) }}

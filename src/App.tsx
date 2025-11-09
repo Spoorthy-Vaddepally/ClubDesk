@@ -9,6 +9,9 @@ import StudentLayout from './layouts/StudentLayout';
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
+import ClearDataPage from './pages/ClearDataPage';
+import RegisterExampleDataPage from './pages/RegisterExampleDataPage';
+import AddMissingDataPage from './pages/AddMissingDataPage';
 
 import ClubHeadDashboard from './pages/club-head/Dashboard';
 import MembersManagement from './pages/club-head/MembersManagement';
@@ -18,13 +21,16 @@ import ClubAnalytics from './pages/club-head/ClubAnalytics';
 import MembershipDrives from './pages/club-head/MembershipDrives';
 import AwardsManagement from './pages/club-head/AwardsManagement';
 import ClubProfile from './pages/club-head/ClubProfile';
-
+import ClubHeadEventDetails from './pages/club-head/EventDetails';
 
 import StudentDashboard from './pages/student/Dashboard';
 import ClubDirectory from './pages/student/ClubDirectory';
 import ClubDetails from './pages/student/ClubDetails';
 import MyClubs from './pages/student/MyClubs';
 import EventsCalendar from './pages/student/EventsCalendar';
+import EventFeedback from './pages/student/EventFeedback';
+import EventDetails from './pages/student/EventDetails';
+import AILearningResources from './pages/student/AILearningResources';
 import Certificates from './pages/student/Certificates';
 import StudentProfile from './pages/student/StudentProfile';
 
@@ -75,6 +81,9 @@ function App() {
         <Routes location={location} key={location.pathname}>
           {/* Public Routes */}
           <Route path="/" element={<LandingPage />} />
+          <Route path="/clear-data" element={<ClearDataPage />} />
+          <Route path="/register-example-data" element={<RegisterExampleDataPage />} />
+          <Route path="/add-missing-data" element={<AddMissingDataPage />} />
           <Route element={<AuthLayout />}>
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
@@ -83,10 +92,7 @@ function App() {
           {/* Club Head Routes */}
           <Route
             element={
-              <ProtectedRoute
-                isAllowed={user?.role === 'club_head'}
-                redirectPath="/login"
-              >
+              <ProtectedRoute>
                 <ClubHeadLayout />
               </ProtectedRoute>
             }
@@ -97,10 +103,12 @@ function App() {
             <Route path="/club/members" element={<MembersManagement />} />
             <Route path="/club/events" element={<EventsManagement />} />
             <Route path="/club/events/create" element={<CreateEvent />} />
+            <Route path="/club/events/:eventId" element={<ClubHeadEventDetails />} />
             <Route path="/club/analytics" element={<ClubAnalytics />} />
             <Route path="/club/membership-drives" element={<MembershipDrives />} />
             <Route path="/club/awards" element={<AwardsManagement />} />
             <Route path="/club/SendNotificationPage" element={<SendNotificationPage />} />
+
             {/* Add Settings page route here if you have Settings component */}
             {/* <Route path="/club/settings" element={<Settings />} /> */}
           </Route>
@@ -108,10 +116,7 @@ function App() {
           {/* Student Routes */}
           <Route
             element={
-              <ProtectedRoute
-                isAllowed={user?.role === 'student'}
-                redirectPath="/login"
-              >
+              <ProtectedRoute>
                 <StudentLayout />
               </ProtectedRoute>
             }
@@ -121,6 +126,9 @@ function App() {
             <Route path="/student/clubs/:id" element={<ClubDetails />} />
             <Route path="/student/my-clubs" element={<MyClubs />} />
             <Route path="/student/events" element={<EventsCalendar />} />
+            <Route path="/student/event/:eventId" element={<EventDetails />} />
+            <Route path="/student/ai-learning" element={<AILearningResources />} />
+            <Route path="/student/event/:eventId/feedback" element={<EventFeedback />} />
             <Route path="/student/certificates" element={<Certificates />} />
             <Route path="/student/profile" element={<StudentProfile />} />
           </Route>

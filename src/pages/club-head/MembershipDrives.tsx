@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Users, 
@@ -12,50 +12,57 @@ import {
   Search,
   Filter
 } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
+import { db } from '../../firebase';
+import { collection, getDocs, query } from 'firebase/firestore';
 
-// Mock data
-const drives = [
-  {
-    id: 1,
-    name: 'Fall 2025 Recruitment',
-    startDate: '2025-09-01',
-    endDate: '2025-09-15',
-    status: 'upcoming',
-    location: 'Student Center',
-    description: 'Join our tech community and build amazing projects together!',
-    slots: 30,
-    applications: 12,
-    image: 'https://images.pexels.com/photos/3184291/pexels-photo-3184291.jpeg'
-  },
-  {
-    id: 2,
-    name: 'Spring Tech Talent Hunt',
-    startDate: '2025-02-01',
-    endDate: '2025-02-15',
-    status: 'completed',
-    location: 'Engineering Building',
-    description: 'Looking for passionate developers and tech enthusiasts.',
-    slots: 25,
-    applications: 35,
-    image: 'https://images.pexels.com/photos/3182812/pexels-photo-3182812.jpeg'
-  },
-  {
-    id: 3,
-    name: 'Summer Internship Program',
-    startDate: '2025-06-01',
-    endDate: '2025-06-30',
-    status: 'upcoming',
-    location: 'Virtual',
-    description: 'Gain hands-on experience with real-world projects.',
-    slots: 20,
-    applications: 8,
-    image: 'https://images.pexels.com/photos/3182781/pexels-photo-3182781.jpeg'
-  }
-];
+interface Drive {
+  id: string;
+  name: string;
+  startDate: string;
+  endDate: string;
+  status: string;
+  location: string;
+  description: string;
+  slots: number;
+  applications: number;
+  image: string;
+}
 
 const MembershipDrives = () => {
+  const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [drives, setDrives] = useState<Drive[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchDrives = async () => {
+      if (!user) return;
+      
+      try {
+        // In a real app, we would filter by the club head's club
+        // For now, we'll fetch all drives
+        const drivesQuery = query(collection(db, 'membershipDrives'));
+        const querySnapshot = await getDocs(drivesQuery);
+        
+        const drivesData: Drive[] = [];
+        querySnapshot.forEach((doc) => {
+          drivesData.push({ id: doc.id, ...doc.data() } as Drive);
+        });
+        
+        setDrives(drivesData);
+      } catch (error) {
+        console.error('Error fetching membership drives:', error);
+        // Set empty array if there's an error
+        setDrives([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDrives();
+  }, [user]);
 
   // Filter drives
   const filteredDrives = drives.filter(drive => {
@@ -64,6 +71,14 @@ const MembershipDrives = () => {
     const matchesStatus = statusFilter === 'all' || drive.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
@@ -129,92 +144,118 @@ const MembershipDrives = () => {
 
       {/* Drives Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredDrives.map((drive) => (
-          <motion.div
-            key={drive.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}
-            className="bg-white rounded-xl shadow-sm overflow-hidden hover:shadow-md transition-shadow duration-300"
-          >
-            <div className="relative h-48">
-              <img 
-                src={drive.image} 
-                alt={drive.name} 
-                className="w-full h-full object-cover"
-              />
-              <div className="absolute top-4 right-4">
-                <div className={`px-2 py-1 rounded-full text-xs font-medium ${
-                  drive.status === 'upcoming' ? 'bg-blue-100 text-blue-800' :
-                  drive.status === 'active' ? 'bg-green-100 text-green-800' :
-                  'bg-gray-100 text-gray-800'
-                }`}>
-                  {drive.status.charAt(0).toUpperCase() + drive.status.slice(1)}
+        {filteredDrives.length > 0 ? (
+          filteredDrives.map((drive) => (
+            <motion.div
+              key={drive.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3 }}
+              className="bg-white rounded-xl shadow-sm overflow-hidden hover:shadow-md transition-shadow duration-300"
+            >
+              <div className="relative h-48">
+                <img 
+                  src={drive.image || 'https://images.pexels.com/photos/3184291/pexels-photo-3184291.jpeg'} 
+                  alt={drive.name} 
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute top-4 right-4">
+                  <div className={`px-2 py-1 rounded-full text-xs font-medium ${
+                    drive.status === 'upcoming' ? 'bg-blue-100 text-blue-800' :
+                    drive.status === 'active' ? 'bg-green-100 text-green-800' :
+                    drive.status === 'completed' ? 'bg-gray-100 text-gray-800' :
+                    'bg-gray-100 text-gray-800'
+                  }`}>
+                    {drive.status ? drive.status.charAt(0).toUpperCase() + drive.status.slice(1) : 'Status'}
+                  </div>
                 </div>
               </div>
+              
+              <div className="p-6">
+                <div className="flex justify-between items-start">
+                  <h3 className="text-lg font-semibold text-gray-900">{drive.name || 'Drive Name'}</h3>
+                  <button className="text-gray-400 hover:text-gray-500">
+                    <MoreVertical size={16} />
+                  </button>
+                </div>
+                
+                <p className="mt-2 text-sm text-gray-600 line-clamp-2">{drive.description || 'Drive description'}</p>
+                
+                <div className="mt-4 space-y-3">
+                  <div className="flex items-center text-gray-500 text-sm">
+                    <Calendar size={16} className="mr-2" />
+                    <span>
+                      {drive.startDate && drive.endDate ? (
+                        <>
+                          {new Date(drive.startDate).toLocaleDateString('en-US', {
+                            month: 'short',
+                            day: 'numeric'
+                          })} - {new Date(drive.endDate).toLocaleDateString('en-US', {
+                            month: 'short',
+                            day: 'numeric'
+                          })}
+                        </>
+                      ) : (
+                        'Date range not provided'
+                      )}
+                    </span>
+                  </div>
+                  <div className="flex items-center text-gray-500 text-sm">
+                    <MapPin size={16} className="mr-2" />
+                    <span>{drive.location || 'Location not provided'}</span>
+                  </div>
+                  <div className="flex items-center text-gray-500 text-sm">
+                    <Users size={16} className="mr-2" />
+                    <span>{drive.applications || 0} applications / {drive.slots || 0} slots</span>
+                  </div>
+                </div>
+                
+                <div className="mt-4">
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div 
+                      className={`h-2 rounded-full ${
+                        drive.slots && drive.applications ? 
+                          (drive.applications / drive.slots) > 1 ? 'bg-red-500' :
+                          (drive.applications / drive.slots) > 0.7 ? 'bg-yellow-500' :
+                          'bg-green-500'
+                        : 'bg-gray-300'
+                      }`}
+                      style={{ 
+                        width: drive.slots && drive.applications ? 
+                          `${Math.min((drive.applications / drive.slots) * 100, 100)}%` : '0%' 
+                      }}
+                    ></div>
+                  </div>
+                </div>
+                
+                <div className="mt-6 flex space-x-3">
+                  <button className="flex-1 inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700">
+                    <Users size={16} className="mr-2" />
+                    View Applications
+                  </button>
+                  <button className="inline-flex items-center justify-center p-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                    <Edit size={16} />
+                  </button>
+                  <button className="inline-flex items-center justify-center p-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-red-600 bg-white hover:bg-gray-50">
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          ))
+        ) : (
+          <div className="col-span-full text-center py-12">
+            <Users size={48} className="mx-auto text-gray-300" />
+            <h3 className="mt-4 text-lg font-medium text-gray-900">No membership drives found</h3>
+            <p className="mt-1 text-gray-500">There are no membership drives created yet.</p>
+            <div className="mt-6">
+              <button className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700">
+                <Plus size={16} className="mr-2" />
+                Create Your First Drive
+              </button>
             </div>
-            
-            <div className="p-6">
-              <div className="flex justify-between items-start">
-                <h3 className="text-lg font-semibold text-gray-900">{drive.name}</h3>
-                <button className="text-gray-400 hover:text-gray-500">
-                  <MoreVertical size={16} />
-                </button>
-              </div>
-              
-              <p className="mt-2 text-sm text-gray-600 line-clamp-2">{drive.description}</p>
-              
-              <div className="mt-4 space-y-3">
-                <div className="flex items-center text-gray-500 text-sm">
-                  <Calendar size={16} className="mr-2" />
-                  <span>
-                    {new Date(drive.startDate).toLocaleDateString('en-US', {
-                      month: 'short',
-                      day: 'numeric'
-                    })} - {new Date(drive.endDate).toLocaleDateString('en-US', {
-                      month: 'short',
-                      day: 'numeric'
-                    })}
-                  </span>
-                </div>
-                <div className="flex items-center text-gray-500 text-sm">
-                  <MapPin size={16} className="mr-2" />
-                  <span>{drive.location}</span>
-                </div>
-                <div className="flex items-center text-gray-500 text-sm">
-                  <Users size={16} className="mr-2" />
-                  <span>{drive.applications} applications / {drive.slots} slots</span>
-                </div>
-              </div>
-              
-              <div className="mt-4">
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div 
-                    className={`h-2 rounded-full ${
-                      (drive.applications / drive.slots) > 1 ? 'bg-red-500' :
-                      (drive.applications / drive.slots) > 0.7 ? 'bg-yellow-500' :
-                      'bg-green-500'
-                    }`}
-                    style={{ width: `${Math.min((drive.applications / drive.slots) * 100, 100)}%` }}
-                  ></div>
-                </div>
-              </div>
-              
-              <div className="mt-6 flex space-x-3">
-                <button className="flex-1 inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700">
-                  <Users size={16} className="mr-2" />
-                  View Applications
-                </button>
-                <button className="inline-flex items-center justify-center p-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
-                  <Edit size={16} />
-                </button>
-                <button className="inline-flex items-center justify-center p-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-red-600 bg-white hover:bg-gray-50">
-                  <Trash2 size={16} />
-                </button>
-              </div>
-            </div>
-          </motion.div>
-        ))}
+          </div>
+        )}
       </div>
     </div>
   );

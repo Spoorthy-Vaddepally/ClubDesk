@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Users, 
@@ -11,74 +11,72 @@ import {
   CheckCircle,
   XCircle,
   MessageSquare,
-  Clock
+  Clock,
+  Plus
 } from 'lucide-react';
+import { db } from '../../firebase';
+import { collection, getDocs, query, where, doc, getDoc } from 'firebase/firestore';
+import { useAuth } from '../../contexts/AuthContext';
 
-// Mock data
-const members = [
-  {
-    id: 1,
-    name: 'Emma Wilson',
-    email: 'emma.wilson@example.com',
-    joinDate: '2024-09-15',
-    status: 'active',
-    role: 'Member',
-    attendance: 85,
-    events: 12,
-    avatar: 'https://images.pexels.com/photos/415829/pexels-photo-415829.jpeg'
-  },
-  {
-    id: 2,
-    name: 'Michael Chen',
-    email: 'michael.chen@example.com',
-    joinDate: '2024-08-20',
-    status: 'active',
-    role: 'Event Coordinator',
-    attendance: 92,
-    events: 15,
-    avatar: 'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg'
-  },
-  {
-    id: 3,
-    name: 'Sarah Johnson',
-    email: 'sarah.j@example.com',
-    joinDate: '2024-10-05',
-    status: 'pending',
-    role: 'Member',
-    attendance: 0,
-    events: 0,
-    avatar: 'https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg'
-  },
-  {
-    id: 4,
-    name: 'James Thompson',
-    email: 'james.t@example.com',
-    joinDate: '2024-07-30',
-    status: 'active',
-    role: 'Technical Lead',
-    attendance: 88,
-    events: 14,
-    avatar: 'https://images.pexels.com/photos/614810/pexels-photo-614810.jpeg'
-  },
-  {
-    id: 5,
-    name: 'Lisa Anderson',
-    email: 'lisa.a@example.com',
-    joinDate: '2024-11-15',
-    status: 'inactive',
-    role: 'Member',
-    attendance: 45,
-    events: 4,
-    avatar: 'https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg'
-  }
-];
+interface Member {
+  id: string;
+  name: string;
+  email: string;
+  joinDate: string;
+  status: 'active' | 'inactive' | 'pending';
+  role: string;
+  attendance: number;
+  events: number;
+  avatar?: string;
+}
 
 const MembersManagement = () => {
+  const { user } = useAuth();
+  const [members, setMembers] = useState<Member[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [roleFilter, setRoleFilter] = useState('all');
   const [sortBy, setSortBy] = useState('name');
   const [sortOrder, setSortOrder] = useState('asc');
+  const [loading, setLoading] = useState(true);
+
+  // Fetch members data from Firebase
+  useEffect(() => {
+    const fetchMembers = async () => {
+      if (!user) return;
+      
+      setLoading(true);
+      try {
+        // Fetch club members from the members subcollection
+        const membersRef = collection(db, 'clubs', user.uid, 'members');
+        const membersSnapshot = await getDocs(membersRef);
+        
+        const membersData: Member[] = [];
+        membersSnapshot.forEach((doc) => {
+          const data = doc.data();
+          membersData.push({
+            id: doc.id,
+            name: data.name || 'Unknown',
+            email: data.email || '',
+            joinDate: data.joinDate || new Date().toISOString(),
+            status: data.status || 'active',
+            role: data.role || 'Member',
+            attendance: data.attendance || 0,
+            events: data.events || 0,
+            avatar: data.avatar || ''
+          });
+        });
+        
+        setMembers(membersData);
+      } catch (error) {
+        console.error('Error fetching members:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchMembers();
+  }, [user]);
 
   // Filter and sort members
   const filteredMembers = members
@@ -106,6 +104,14 @@ const MembersManagement = () => {
       setSortOrder('asc');
     }
   };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
@@ -242,77 +248,93 @@ const MembersManagement = () => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredMembers.map((member) => (
-                <motion.tr 
-                  key={member.id}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ duration: 0.3 }}
-                  className="hover:bg-gray-50"
-                >
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      <div className="flex-shrink-0 h-10 w-10">
-                        <img 
-                          className="h-10 w-10 rounded-full object-cover" 
-                          src={member.avatar} 
-                          alt={member.name} 
-                        />
+              {filteredMembers.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="px-6 py-4 text-center text-gray-500">
+                    No members found. Add members to your club to get started.
+                  </td>
+                </tr>
+              ) : (
+                filteredMembers.map((member) => (
+                  <motion.tr 
+                    key={member.id}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.3 }}
+                    className="hover:bg-gray-50"
+                  >
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <div className="flex-shrink-0 h-10 w-10">
+                          {member.avatar ? (
+                            <img 
+                              className="h-10 w-10 rounded-full object-cover" 
+                              src={member.avatar} 
+                              alt={member.name} 
+                            />
+                          ) : (
+                            <div className="h-10 w-10 rounded-full bg-primary-100 flex items-center justify-center">
+                              <span className="text-primary-800 font-medium">
+                                {member.name.charAt(0).toUpperCase()}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                        <div className="ml-4">
+                          <div className="text-sm font-medium text-gray-900">{member.name}</div>
+                          <div className="text-sm text-gray-500">{member.email}</div>
+                        </div>
                       </div>
-                      <div className="ml-4">
-                        <div className="text-sm font-medium text-gray-900">{member.name}</div>
-                        <div className="text-sm text-gray-500">{member.email}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        member.status === 'active' ? 'bg-green-100 text-green-800' :
+                        member.status === 'inactive' ? 'bg-red-100 text-red-800' :
+                        'bg-yellow-100 text-yellow-800'
+                      }`}>
+                        {member.status === 'active' && <CheckCircle size={12} className="mr-1" />}
+                        {member.status === 'inactive' && <XCircle size={12} className="mr-1" />}
+                        {member.status === 'pending' && <Clock size={12} className="mr-1" />}
+                        {member.status.charAt(0).toUpperCase() + member.status.slice(1)}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">{member.role}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {new Date(member.joinDate).toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric'
+                      })}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <div className="w-16 bg-gray-200 rounded-full h-2">
+                          <div 
+                            className="bg-primary-600 h-2 rounded-full" 
+                            style={{ width: `${member.attendance}%` }}
+                          ></div>
+                        </div>
+                        <span className="ml-2 text-sm text-gray-500">{member.attendance}%</span>
                       </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      member.status === 'active' ? 'bg-green-100 text-green-800' :
-                      member.status === 'inactive' ? 'bg-red-100 text-red-800' :
-                      'bg-yellow-100 text-yellow-800'
-                    }`}>
-                      {member.status === 'active' && <CheckCircle size={12} className="mr-1" />}
-                      {member.status === 'inactive' && <XCircle size={12} className="mr-1" />}
-                      {member.status === 'pending' && <Clock size={12} className="mr-1" />}
-                      {member.status.charAt(0).toUpperCase() + member.status.slice(1)}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">{member.role}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {new Date(member.joinDate).toLocaleDateString('en-US', {
-                      year: 'numeric',
-                      month: 'short',
-                      day: 'numeric'
-                    })}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      <div className="w-16 bg-gray-200 rounded-full h-2">
-                        <div 
-                          className="bg-primary-600 h-2 rounded-full" 
-                          style={{ width: `${member.attendance}%` }}
-                        ></div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {member.events}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <div className="flex items-center justify-end space-x-3">
+                        <button className="text-primary-600 hover:text-primary-900">
+                          <MessageSquare size={16} />
+                        </button>
+                        <button className="text-gray-400 hover:text-gray-500">
+                          <MoreVertical size={16} />
+                        </button>
                       </div>
-                      <span className="ml-2 text-sm text-gray-500">{member.attendance}%</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {member.events}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <div className="flex items-center justify-end space-x-3">
-                      <button className="text-primary-600 hover:text-primary-900">
-                        <MessageSquare size={16} />
-                      </button>
-                      <button className="text-gray-400 hover:text-gray-500">
-                        <MoreVertical size={16} />
-                      </button>
-                    </div>
-                  </td>
-                </motion.tr>
-              ))}
+                    </td>
+                  </motion.tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

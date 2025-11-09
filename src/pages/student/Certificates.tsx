@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Award,
@@ -9,41 +9,55 @@ import {
   Calendar,
   Star
 } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
+import { db } from '../../firebase';
+import { collection, getDocs, query, where } from 'firebase/firestore';
 
-// Mock data
-const certificates = [
-  {
-    id: 1,
-    name: 'Outstanding Member',
-    club: 'Coding Club',
-    issueDate: '2025-03-15',
-    category: 'Achievement',
-    description: 'Awarded for exceptional contribution to club projects and activities.',
-    image: 'https://images.pexels.com/photos/3184291/pexels-photo-3184291.jpeg'
-  },
-  {
-    id: 2,
-    name: 'Hackathon Winner',
-    club: 'Coding Club',
-    issueDate: '2025-02-28',
-    category: 'Competition',
-    description: 'First place in the Annual Campus Hackathon 2025.',
-    image: 'https://images.pexels.com/photos/3182812/pexels-photo-3182812.jpeg'
-  },
-  {
-    id: 3,
-    name: 'Photography Exhibition',
-    club: 'Photography Club',
-    issueDate: '2025-02-15',
-    category: 'Participation',
-    description: 'Successfully participated in the Spring Photography Exhibition.',
-    image: 'https://images.pexels.com/photos/3182781/pexels-photo-3182781.jpeg'
-  }
-];
+interface Certificate {
+  id: string;
+  name: string;
+  club: string;
+  issueDate: string;
+  category: string;
+  description: string;
+  image: string;
+}
 
 const Certificates = () => {
+  const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
+  const [certificates, setCertificates] = useState<Certificate[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchCertificates = async () => {
+      if (!user) return;
+      
+      try {
+        const certificatesQuery = query(
+          collection(db, 'certificates'),
+          where('userId', '==', user.uid)
+        );
+        const querySnapshot = await getDocs(certificatesQuery);
+        
+        const certificatesData: Certificate[] = [];
+        querySnapshot.forEach((doc) => {
+          certificatesData.push({ id: doc.id, ...doc.data() } as Certificate);
+        });
+        
+        setCertificates(certificatesData);
+      } catch (error) {
+        console.error('Error fetching certificates:', error);
+        // Set empty array if there's an error
+        setCertificates([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCertificates();
+  }, [user]);
 
   // Filter certificates
   const filteredCertificates = certificates.filter(certificate => {
@@ -52,6 +66,14 @@ const Certificates = () => {
     const matchesCategory = categoryFilter === 'all' || certificate.category === categoryFilter;
     return matchesSearch && matchesCategory;
   });
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
@@ -108,7 +130,7 @@ const Certificates = () => {
             </div>
             <div className="ml-4">
               <h3 className="text-sm font-medium text-gray-500">Total Certificates</h3>
-              <p className="text-2xl font-bold text-gray-900">6</p>
+              <p className="text-2xl font-bold text-gray-900">{certificates.length}</p>
             </div>
           </div>
         </div>
@@ -120,7 +142,9 @@ const Certificates = () => {
             </div>
             <div className="ml-4">
               <h3 className="text-sm font-medium text-gray-500">Achievements</h3>
-              <p className="text-2xl font-bold text-gray-900">3</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {certificates.filter(c => c.category === 'Achievement').length}
+              </p>
             </div>
           </div>
         </div>
@@ -132,7 +156,9 @@ const Certificates = () => {
             </div>
             <div className="ml-4">
               <h3 className="text-sm font-medium text-gray-500">This Year</h3>
-              <p className="text-2xl font-bold text-gray-900">4</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {certificates.filter(c => new Date(c.issueDate).getFullYear() === new Date().getFullYear()).length}
+              </p>
             </div>
           </div>
         </div>
@@ -140,58 +166,66 @@ const Certificates = () => {
 
       {/* Certificates Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredCertificates.map((certificate) => (
-          <motion.div
-            key={certificate.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}
-            className="bg-white rounded-xl shadow-sm overflow-hidden hover:shadow-md transition-shadow duration-300"
-          >
-            <div className="relative h-48">
-              <img 
-                src={certificate.image} 
-                alt={certificate.name} 
-                className="w-full h-full object-cover"
-              />
-              <div className="absolute top-4 right-4">
-                <div className="px-2 py-1 rounded-full text-xs font-medium bg-primary-100 text-primary-800">
-                  {certificate.category}
+        {filteredCertificates.length > 0 ? (
+          filteredCertificates.map((certificate) => (
+            <motion.div
+              key={certificate.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3 }}
+              className="bg-white rounded-xl shadow-sm overflow-hidden hover:shadow-md transition-shadow duration-300"
+            >
+              <div className="relative h-48">
+                <img 
+                  src={certificate.image || 'https://images.pexels.com/photos/3184291/pexels-photo-3184291.jpeg'} 
+                  alt={certificate.name} 
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute top-4 right-4">
+                  <div className="px-2 py-1 rounded-full text-xs font-medium bg-primary-100 text-primary-800">
+                    {certificate.category || 'Category'}
+                  </div>
                 </div>
               </div>
-            </div>
-            
-            <div className="p-6">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900">{certificate.name}</h3>
-                <p className="text-primary-600 font-medium">{certificate.club}</p>
-              </div>
               
-              <p className="mt-4 text-sm text-gray-600">{certificate.description}</p>
-              
-              <div className="mt-4 flex items-center text-gray-500 text-sm">
-                <Calendar size={16} className="mr-2" />
-                <span>
-                  {new Date(certificate.issueDate).toLocaleDateString('en-US', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric'
-                  })}
-                </span>
+              <div className="p-6">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">{certificate.name || 'Certificate Name'}</h3>
+                  <p className="text-primary-600 font-medium">{certificate.club || 'Club Name'}</p>
+                </div>
+                
+                <p className="mt-4 text-sm text-gray-600">{certificate.description || 'Certificate description'}</p>
+                
+                <div className="mt-4 flex items-center text-gray-500 text-sm">
+                  <Calendar size={16} className="mr-2" />
+                  <span>
+                    {certificate.issueDate ? new Date(certificate.issueDate).toLocaleDateString('en-US', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric'
+                    }) : 'Date not provided'}
+                  </span>
+                </div>
+                
+                <div className="mt-6 flex space-x-3">
+                  <button className="flex-1 inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700">
+                    <Download size={16} className="mr-2" />
+                    Download
+                  </button>
+                  <button className="inline-flex items-center justify-center p-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                    <Share2 size={16} />
+                  </button>
+                </div>
               </div>
-              
-              <div className="mt-6 flex space-x-3">
-                <button className="flex-1 inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700">
-                  <Download size={16} className="mr-2" />
-                  Download
-                </button>
-                <button className="inline-flex items-center justify-center p-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
-                  <Share2 size={16} />
-                </button>
-              </div>
-            </div>
-          </motion.div>
-        ))}
+            </motion.div>
+          ))
+        ) : (
+          <div className="col-span-full text-center py-12">
+            <Award size={48} className="mx-auto text-gray-300" />
+            <h3 className="mt-4 text-lg font-medium text-gray-900">No certificates found</h3>
+            <p className="mt-1 text-gray-500">You don't have any certificates yet.</p>
+          </div>
+        )}
       </div>
     </div>
   );

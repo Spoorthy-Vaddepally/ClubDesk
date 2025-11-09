@@ -32,7 +32,7 @@ const LoadingScreen = () => {
           animate={{ opacity: 1 }}
           transition={{ duration: 1 }}
         >
-          ClubConnect
+          ClubDesk
         </motion.h1>
         <motion.p 
           className="mt-2 text-primary-100"

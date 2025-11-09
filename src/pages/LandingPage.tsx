@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Users, TrendingUp, Calendar, Award, Bell, ArrowRight, ChevronDown, Sparkles } from 'lucide-react';
+import { Users, TrendingUp, Calendar, Award, Bell, ArrowRight, ChevronDown, Sparkles, Star, Check } from 'lucide-react';
 
 const LandingPage = () => {
   const featuresRef = useRef<HTMLDivElement>(null);
@@ -62,6 +62,10 @@ const LandingPage = () => {
     }
   ];
 
+  const scrollToFeatures = () => {
+    featuresRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
   return (
     <div className="min-h-screen flex flex-col">
       {/* Navigation */}
@@ -78,13 +82,15 @@ const LandingPage = () => {
               whileHover={{ scale: 1.05 }}
               transition={{ type: "spring", stiffness: 400, damping: 10 }}
             >
-              <Users className="h-8 w-8 text-primary-600" />
-              <span className="ml-2 text-xl font-bold text-gray-900">ClubConnect</span>
+              <div className="bg-gradient-to-br from-primary-600 to-primary-800 p-2 rounded-lg">
+                <Users className="h-6 w-6 text-white" />
+              </div>
+              <span className="ml-2 text-xl font-bold text-gray-900">ClubDesk</span>
             </motion.div>
             <div className="hidden md:flex items-center space-x-4">
               <motion.a 
                 href="#features" 
-                className="text-gray-700 hover:text-primary-600 px-3 py-2 text-sm font-medium"
+                className="text-gray-700 hover:text-primary-600 px-3 py-2 text-sm font-medium transition-colors"
                 whileHover={{ y: -2 }}
                 transition={{ type: "spring", stiffness: 400 }}
               >
@@ -92,11 +98,35 @@ const LandingPage = () => {
               </motion.a>
               <motion.a 
                 href="#testimonials" 
-                className="text-gray-700 hover:text-primary-600 px-3 py-2 text-sm font-medium"
+                className="text-gray-700 hover:text-primary-600 px-3 py-2 text-sm font-medium transition-colors"
                 whileHover={{ y: -2 }}
                 transition={{ type: "spring", stiffness: 400 }}
               >
                 Testimonials
+              </motion.a>
+              <motion.a 
+                href="/clear-data" 
+                className="text-gray-700 hover:text-primary-600 px-3 py-2 text-sm font-medium transition-colors"
+                whileHover={{ y: -2 }}
+                transition={{ type: "spring", stiffness: 400 }}
+              >
+                Clear Data
+              </motion.a>
+              <motion.a 
+                href="/register-example-data" 
+                className="text-gray-700 hover:text-primary-600 px-3 py-2 text-sm font-medium transition-colors"
+                whileHover={{ y: -2 }}
+                transition={{ type: "spring", stiffness: 400 }}
+              >
+                Register Example Data
+              </motion.a>
+              <motion.a 
+                href="/add-missing-data" 
+                className="text-gray-700 hover:text-primary-600 px-3 py-2 text-sm font-medium transition-colors"
+                whileHover={{ y: -2 }}
+                transition={{ type: "spring", stiffness: 400 }}
+              >
+                Add Missing Data
               </motion.a>
               <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
                 <Link to="/login" className="text-primary-600 hover:text-primary-700 px-3 py-2 text-sm font-medium">Login</Link>
@@ -104,7 +134,7 @@ const LandingPage = () => {
               <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
                 <Link 
                   to="/register" 
-                  className="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors duration-300"
+                  className="bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white px-4 py-2 rounded-md text-sm font-medium transition-all duration-300 shadow-md"
                 >
                   Sign Up
                 </Link>
@@ -119,9 +149,27 @@ const LandingPage = () => {
               </Link>
               <Link 
                 to="/register" 
-                className="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-md text-sm font-medium"
+                className="bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white px-4 py-2 rounded-md text-sm font-medium shadow-md mr-2"
               >
                 Sign Up
+              </Link>
+              <Link 
+                to="/clear-data" 
+                className="text-primary-600 hover:text-primary-700 px-3 py-2 text-sm font-medium mr-2"
+              >
+                Clear
+              </Link>
+              <Link 
+                to="/register-example-data" 
+                className="text-primary-600 hover:text-primary-700 px-3 py-2 text-sm font-medium mr-2"
+              >
+                Register
+              </Link>
+              <Link 
+                to="/add-missing-data" 
+                className="text-primary-600 hover:text-primary-700 px-3 py-2 text-sm font-medium"
+              >
+                Add Data
               </Link>
             </div>
           </div>
@@ -131,7 +179,7 @@ const LandingPage = () => {
       {/* Hero Section */}
       <section className="relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-r from-primary-900 to-primary-700"></div>
-        <div className="absolute inset-0 bg-[url('https://images.pexels.com/photos/7096/people-woman-coffee-meeting.jpg?auto=compress&cs=tinysrgb&w=1260&h=750')] bg-cover bg-center opacity-20"></div>
+        <div className="absolute inset-0 bg-[url('https://images.pexels.com/photos/7096/people-woman-coffee-meeting.jpg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2')] bg-cover bg-center opacity-20"></div>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 md:pt-20 lg:pt-24 relative">
           <div className="grid md:grid-cols-2 gap-8 items-center">
             <motion.div 
@@ -165,19 +213,19 @@ const LandingPage = () => {
                 <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
                   <Link 
                     to="/register" 
-                    className="bg-white text-primary-800 hover:bg-gray-100 px-6 py-3 rounded-md font-medium text-lg flex items-center transition-colors duration-300 shadow-lg"
+                    className="bg-white text-primary-800 hover:bg-gray-100 px-6 py-3 rounded-md font-medium text-lg flex items-center transition-all duration-300 shadow-lg"
                   >
                     Get Started
                     <ArrowRight size={18} className="ml-2" />
                   </Link>
                 </motion.div>
                 <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                  <a 
-                    href="#features" 
-                    className="bg-transparent border-2 border-white text-white hover:bg-white hover:text-primary-800 px-6 py-3 rounded-md font-medium text-lg transition-colors duration-300"
+                  <button 
+                    onClick={scrollToFeatures}
+                    className="bg-transparent border-2 border-white text-white hover:bg-white hover:text-primary-800 px-6 py-3 rounded-md font-medium text-lg transition-all duration-300"
                   >
                     Learn More
-                  </a>
+                  </button>
                 </motion.div>
               </motion.div>
             </motion.div>
@@ -198,7 +246,7 @@ const LandingPage = () => {
                   transition={{ delay: 0.5 }}
                 ></motion.div>
                 <motion.img 
-                  src="https://images.pexels.com/photos/7096/people-woman-coffee-meeting.jpg?auto=compress&cs=tinysrgb&w=1260&h=750" 
+                  src="https://images.pexels.com/photos/7096/people-woman-coffee-meeting.jpg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2" 
                   alt="Campus club members collaborating" 
                   className="rounded-lg shadow-2xl w-full object-cover h-96 lg:h-[450px] relative z-10 border-4 border-white"
                   whileHover={{ scale: 1.03 }}
@@ -329,7 +377,7 @@ const LandingPage = () => {
             ].map((feature, index) => (
               <motion.div 
                 key={index} 
-                className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition-shadow duration-300"
+                className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition-all duration-300"
                 variants={itemVariants}
                 whileHover={{ 
                   y: -10,
@@ -383,9 +431,14 @@ const LandingPage = () => {
                   <img 
                     src={testimonials[activeTestimonial].avatar} 
                     alt={testimonials[activeTestimonial].name} 
-                    className="w-24 h-24 rounded-full object-cover mb-6 md:mb-0 md:mr-8"
+                    className="w-24 h-24 rounded-full object-cover mb-6 md:mb-0 md:mr-8 border-4 border-white shadow-md"
                   />
                   <div className="text-center md:text-left">
+                    <div className="flex mb-4 justify-center md:justify-start">
+                      {[...Array(5)].map((_, i) => (
+                        <Star key={i} size={20} className="text-yellow-400 fill-current" />
+                      ))}
+                    </div>
                     <p className="text-gray-700 italic text-lg mb-6">"{testimonials[activeTestimonial].quote}"</p>
                     <div>
                       <p className="font-medium text-gray-900 text-lg">{testimonials[activeTestimonial].name}</p>
@@ -401,8 +454,8 @@ const LandingPage = () => {
                 <button
                   key={index}
                   onClick={() => setActiveTestimonial(index)}
-                  className={`w-3 h-3 rounded-full ${
-                    index === activeTestimonial ? 'bg-primary-600' : 'bg-gray-300'
+                  className={`w-3 h-3 rounded-full transition-all duration-300 ${
+                    index === activeTestimonial ? 'bg-primary-600 w-6' : 'bg-gray-300'
                   }`}
                 />
               ))}
@@ -458,7 +511,7 @@ const LandingPage = () => {
             <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
               <Link 
                 to="/register" 
-                className="bg-white text-primary-800 hover:bg-gray-100 px-8 py-4 rounded-md font-medium text-lg transition-colors duration-300 shadow-lg flex items-center"
+                className="bg-white text-primary-800 hover:bg-gray-100 px-8 py-4 rounded-md font-medium text-lg transition-all duration-300 shadow-lg flex items-center"
               >
                 <Sparkles size={20} className="mr-2" />
                 Get Started Now
@@ -467,7 +520,7 @@ const LandingPage = () => {
             <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
               <Link 
                 to="/login" 
-                className="bg-transparent border-2 border-white text-white hover:bg-white hover:text-primary-800 px-8 py-4 rounded-md font-medium text-lg transition-colors duration-300 flex items-center"
+                className="bg-transparent border-2 border-white text-white hover:bg-white hover:text-primary-800 px-8 py-4 rounded-md font-medium text-lg transition-all duration-300 flex items-center"
               >
                 <Users size={20} className="mr-2" />
                 Log In
@@ -483,8 +536,10 @@ const LandingPage = () => {
           <div className="grid md:grid-cols-4 gap-8">
             <div>
               <div className="flex items-center mb-4">
-                <Users className="h-6 w-6 text-primary-400 mr-2" />
-                <span className="font-bold text-xl">ClubConnect</span>
+                <div className="bg-gradient-to-br from-primary-500 to-primary-700 p-2 rounded-lg">
+                  <Users className="h-6 w-6 text-white" />
+                </div>
+                <span className="font-bold text-xl ml-2">ClubDesk</span>
               </div>
               <p className="text-gray-400 mb-4">
                 Empowering campus clubs and students to connect, collaborate, and thrive.
@@ -511,33 +566,33 @@ const LandingPage = () => {
             <div>
               <h3 className="font-semibold text-lg mb-4">For Club Heads</h3>
               <ul className="space-y-3">
-                <li><a href="#" className="text-gray-400 hover:text-white transition-colors duration-300">Analytics Dashboard</a></li>
-                <li><a href="#" className="text-gray-400 hover:text-white transition-colors duration-300">Member Management</a></li>
-                <li><a href="#" className="text-gray-400 hover:text-white transition-colors duration-300">Event Planning</a></li>
-                <li><a href="#" className="text-gray-400 hover:text-white transition-colors duration-300">Membership Drives</a></li>
+                <li><a href="#" className="text-gray-400 hover:text-white transition-colors duration-300 flex items-center"><Check size={16} className="mr-2 text-green-500" /> Analytics Dashboard</a></li>
+                <li><a href="#" className="text-gray-400 hover:text-white transition-colors duration-300 flex items-center"><Check size={16} className="mr-2 text-green-500" /> Member Management</a></li>
+                <li><a href="#" className="text-gray-400 hover:text-white transition-colors duration-300 flex items-center"><Check size={16} className="mr-2 text-green-500" /> Event Planning</a></li>
+                <li><a href="#" className="text-gray-400 hover:text-white transition-colors duration-300 flex items-center"><Check size={16} className="mr-2 text-green-500" /> Membership Drives</a></li>
               </ul>
             </div>
             <div>
               <h3 className="font-semibold text-lg mb-4">For Students</h3>
               <ul className="space-y-3">
-                <li><a href="#" className="text-gray-400 hover:text-white transition-colors duration-300">Discover Clubs</a></li>
-                <li><a href="#" className="text-gray-400 hover:text-white transition-colors duration-300">Upcoming Events</a></li>
-                <li><a href="#" className="text-gray-400 hover:text-white transition-colors duration-300">Join Clubs</a></li>
-                <li><a href="#" className="text-gray-400 hover:text-white transition-colors duration-300">Certificates</a></li>
+                <li><a href="#" className="text-gray-400 hover:text-white transition-colors duration-300 flex items-center"><Check size={16} className="mr-2 text-green-500" /> Discover Clubs</a></li>
+                <li><a href="#" className="text-gray-400 hover:text-white transition-colors duration-300 flex items-center"><Check size={16} className="mr-2 text-green-500" /> Upcoming Events</a></li>
+                <li><a href="#" className="text-gray-400 hover:text-white transition-colors duration-300 flex items-center"><Check size={16} className="mr-2 text-green-500" /> Join Clubs</a></li>
+                <li><a href="#" className="text-gray-400 hover:text-white transition-colors duration-300 flex items-center"><Check size={16} className="mr-2 text-green-500" /> Certificates</a></li>
               </ul>
             </div>
             <div>
               <h3 className="font-semibold text-lg mb-4">Resources</h3>
               <ul className="space-y-3">
-                <li><a href="#" className="text-gray-400 hover:text-white transition-colors duration-300">Help Center</a></li>
-                <li><a href="#" className="text-gray-400 hover:text-white transition-colors duration-300">Blog</a></li>
-                <li><a href="#" className="text-gray-400 hover:text-white transition-colors duration-300">Contact Us</a></li>
-                <li><a href="#" className="text-gray-400 hover:text-white transition-colors duration-300">Privacy Policy</a></li>
+                <li><a href="#" className="text-gray-400 hover:text-white transition-colors duration-300 flex items-center"><Check size={16} className="mr-2 text-green-500" /> Help Center</a></li>
+                <li><a href="#" className="text-gray-400 hover:text-white transition-colors duration-300 flex items-center"><Check size={16} className="mr-2 text-green-500" /> Blog</a></li>
+                <li><a href="#" className="text-gray-400 hover:text-white transition-colors duration-300 flex items-center"><Check size={16} className="mr-2 text-green-500" /> Contact Us</a></li>
+                <li><a href="#" className="text-gray-400 hover:text-white transition-colors duration-300 flex items-center"><Check size={16} className="mr-2 text-green-500" /> Privacy Policy</a></li>
               </ul>
             </div>
           </div>
           <div className="border-t border-gray-800 mt-12 pt-8 text-center text-gray-400">
-            <p>© 2025 ClubConnect. All rights reserved.</p>
+            <p>© 2025 ClubDesk. All rights reserved.</p>
           </div>
         </div>
       </footer>

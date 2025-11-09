@@ -1,9 +1,26 @@
 {
   "firestore": {
-    "rules": "firestore.rules.dev",
+    "rules": "firestore.rules",
     "indexes": "firestore.indexes.json"
   },
   "storage": {
-    "rules": "storage.rules.dev"
-  }
+    "rules": "storage.rules"
+  },
+  "functions": [
+    {
+      "codebase": "default",
+      "disallowLegacyRuntimeConfig": true,
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        "*.local"
+      ],
+      "source": "functions",
+      "predeploy": [
+        "npm --prefix \"$RESOURCE_DIR\" run build"
+      ]
+    }
+  ]
 }

@@ -29,7 +29,38 @@ service cloud.firestore {
       allow create, update, delete: if request.auth != null && request.auth.uid == userId;
     }
     
-    // Allow authenticated users to access other collections
+    // Club EB members - club heads can manage
+    match /clubs/{clubId}/ebMembers/{memberId} {
+      allow read: if true;
+      allow create, update, delete: if request.auth != null && request.auth.uid == clubId;
+    }
+    
+    // Club members - club heads can manage
+    match /clubs/{clubId}/members/{memberId} {
+      allow read: if true;
+      allow create, update, delete: if request.auth != null && request.auth.uid == clubId;
+    }
+    
+    // Club membership drives - club heads can manage
+    match /clubs/{clubId}/membershipDrives/{driveId} {
+      allow read: if true;
+      allow create, update, delete: if request.auth != null && request.auth.uid == clubId;
+    }
+    
+    // Club awards - club heads can manage
+    match /clubs/{clubId}/awards/{awardId} {
+      allow read: if true;
+      allow create, update, delete: if request.auth != null && request.auth.uid == clubId;
+    }
+    
+    // Event feedback - users can create, anyone can read, owners can update/delete
+    match /eventFeedback/{feedbackId} {
+      allow read: if true;
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null && request.auth.uid == resource.data.userId;
+    }
+    
+    // Fallback rule for other collections
     match /{document=**} {
       allow read, write: if request.auth != null;
     }

@@ -10,9 +10,12 @@ import {
   increment,
   arrayUnion,
   arrayRemove,
+  query,
+  orderBy,
 } from 'firebase/firestore';
 import { Search } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { Link } from 'react-router-dom';
 
 interface Club {
   id: string;
@@ -20,6 +23,7 @@ interface Club {
   description: string;
   category?: string;
   logoURL?: string;
+  bannerURL?: string;
   followersCount?: number;
   membersCount?: number;
   rating?: number;
@@ -29,6 +33,8 @@ interface Club {
   nextEventDate?: string;
   memberSince?: string;
   domain?: string;
+  motto?: string;
+  establishedYear?: string;
 }
 
 const ClubDirectory = () => {
@@ -38,30 +44,98 @@ const ClubDirectory = () => {
   const [selectedCategory, setSelectedCategory] = useState('All Categories');
   const [userFollowedClubs, setUserFollowedClubs] = useState<string[]>([]);
   const [loadingClubId, setLoadingClubId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    console.log('ClubDirectory component mounted');
+    
     const fetchClubs = async () => {
       try {
+        console.log('Fetching clubs from Firestore');
+        // Fetch clubs with additional data
         const clubsSnapshot = await getDocs(collection(db, 'clubs'));
-        const clubsData = clubsSnapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        })) as Club[];
+        console.log('Clubs snapshot size:', clubsSnapshot.size);
+        
+        const clubsDataPromises = clubsSnapshot.docs.map(async (doc) => {
+          const clubData = doc.data();
+          console.log('Processing club:', doc.id, clubData);
+          
+          // Fetch members count
+          let membersCount = 0;
+          try {
+            const membersRef = collection(db, 'clubs', doc.id, 'members');
+            const membersSnapshot = await getDocs(membersRef);
+            membersCount = membersSnapshot.size;
+            console.log('Members count for club', doc.id, ':', membersCount);
+          } catch (membersError) {
+            console.error('Error fetching members count for club', doc.id, ':', membersError);
+          }
+          
+          // Fetch events count
+          let eventsCount = 0;
+          try {
+            const eventsRef = collection(db, 'clubs', doc.id, 'events');
+            const eventsSnapshot = await getDocs(eventsRef);
+            eventsCount = eventsSnapshot.size;
+            console.log('Events count for club', doc.id, ':', eventsCount);
+          } catch (eventsError) {
+            console.error('Error fetching events count for club', doc.id, ':', eventsError);
+          }
+          
+          // Fetch awards count
+          let awardsCount = 0;
+          try {
+            const awardsRef = collection(db, 'clubs', doc.id, 'awards');
+            const awardsSnapshot = await getDocs(awardsRef);
+            awardsCount = awardsSnapshot.size;
+            console.log('Awards count for club', doc.id, ':', awardsCount);
+          } catch (awardsError) {
+            console.error('Error fetching awards count for club', doc.id, ':', awardsError);
+          }
+          
+          return {
+            id: doc.id,
+            name: clubData.name || 'Club Name',
+            description: clubData.description || clubData.motto || 'No description available',
+            category: clubData.domain || clubData.category || 'General',
+            logoURL: clubData.logoURL || '',
+            bannerURL: clubData.bannerURL || '',
+            followersCount: clubData.followersCount || 0,
+            membersCount,
+            rating: clubData.rating || 4.8,
+            eventsCount,
+            awardsCount,
+            domain: clubData.domain || '',
+            motto: clubData.motto || '',
+            establishedYear: clubData.establishedYear || ''
+          };
+        });
+        
+        const clubsData = await Promise.all(clubsDataPromises);
+        console.log('All clubs data:', clubsData);
         setClubs(clubsData);
+        setLoading(false);
       } catch (error) {
         console.error('Error fetching clubs:', error);
+        setLoading(false);
       }
     };
 
     const fetchUserFollowedClubs = async () => {
-      if (!user) return;
+      if (!user) {
+        console.log('No user logged in, skipping followed clubs fetch');
+        return;
+      }
       try {
+        console.log('Fetching user followed clubs for user:', user.uid);
         const userDocRef = doc(db, 'users', user.uid);
         const docSnap = await getDoc(userDocRef);
         if (docSnap.exists()) {
           const userData = docSnap.data() || {};
+          console.log('User data:', userData);
           setUserFollowedClubs(userData.followedClubs || []);
         } else {
+          console.log('No user document found');
           setUserFollowedClubs([]);
         }
       } catch (error) {
@@ -140,6 +214,19 @@ const ClubDirectory = () => {
     }
   };
 
+  if (loading) {
+    console.log('Component is loading');
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+        <span className="ml-4">Loading clubs...</span>
+      </div>
+    );
+  }
+
+  console.log('Rendering clubs:', clubs);
+  console.log('Filtered clubs:', filteredClubs);
+
   return (
     <div className="space-y-8">
       {/* Header */}
@@ -185,6 +272,7 @@ const ClubDirectory = () => {
           </p>
         ) : (
           filteredClubs.map((club) => {
+            console.log('Rendering club card:', club);
             const isFollowing = userFollowedClubs.includes(club.id);
             const loading = loadingClubId === club.id;
             return (
@@ -193,94 +281,86 @@ const ClubDirectory = () => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.3 }}
-                className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300 p-6 flex flex-col justify-between"
+                className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300"
               >
-                {/* Club Header */}
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center space-x-4">
+                {/* Banner Image */}
+                <div className="h-32 relative">
+                  {club.bannerURL ? (
+                    <img
+                      src={club.bannerURL}
+                      alt={`${club.name} banner`}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-r from-primary-500 to-purple-600"></div>
+                  )}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+                  
+                  {/* Logo */}
+                  <div className="absolute bottom-0 left-4 transform translate-y-1/2">
                     {club.logoURL ? (
                       <img
                         src={club.logoURL}
                         alt={`${club.name} logo`}
-                        className="h-16 w-16 object-cover rounded-full"
+                        className="h-16 w-16 object-cover rounded-full border-4 border-white shadow-lg"
                       />
                     ) : (
-                      <div className="h-16 w-16 bg-gray-300 rounded-full flex items-center justify-center text-gray-600 font-bold text-xl">
+                      <div className="h-16 w-16 bg-gradient-to-br from-primary-500 to-primary-700 rounded-full flex items-center justify-center text-white font-bold text-xl border-4 border-white shadow-lg">
                         {club.name.charAt(0).toUpperCase()}
                       </div>
                     )}
+                  </div>
+                </div>
+                
+                {/* Club Info */}
+                <div className="pt-10 px-4 pb-4">
+                  <div className="flex items-center justify-between">
                     <div>
                       <h3 className="text-xl font-bold text-gray-900">{club.name}</h3>
                       <p className="text-sm text-gray-500">{club.category || 'General'}</p>
                     </div>
+                    <button
+                      onClick={() => (isFollowing ? unfollowClub(club.id) : followClub(club.id))}
+                      disabled={loading}
+                      className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors duration-200 focus:outline-none ${
+                        isFollowing
+                          ? 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                          : 'bg-primary-600 text-white hover:bg-primary-700'
+                      }`}
+                    >
+                      {loading ? 'Loading...' : isFollowing ? 'Unfollow' : 'Follow'}
+                    </button>
                   </div>
-                  <button
-                    onClick={() => (isFollowing ? unfollowClub(club.id) : followClub(club.id))}
-                    disabled={loading}
-                    className={`px-4 py-1 rounded-full text-sm font-semibold transition-colors duration-200 focus:outline-none ${
-                      isFollowing
-                        ? 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                        : 'bg-primary-600 text-white hover:bg-primary-700'
-                    }`}
+                  
+                  {/* Club Description */}
+                  <p className="text-gray-600 text-sm mt-3 line-clamp-2">
+                    {club.description || 'No description available for this club.'}
+                  </p>
+                  
+                  {/* Club Stats */}
+                  <div className="grid grid-cols-3 gap-2 text-center text-xs text-gray-600 mt-4 pt-3 border-t border-gray-100">
+                    <div>
+                      <div className="font-semibold text-base">{club.rating?.toFixed(1) || '4.8'}</div>
+                      <div>Rating</div>
+                    </div>
+                    <div>
+                      <div className="font-semibold text-base">{club.membersCount || 0}</div>
+                      <div>Members</div>
+                    </div>
+                    <div>
+                      <div className="font-semibold text-base">{club.eventsCount || 0}</div>
+                      <div>Events</div>
+                    </div>
+                  </div>
+                  
+                  {/* View Club Button */}
+                  <Link
+                    to={`/student/clubs/${club.id}`}
+                    className="mt-4 w-full inline-block text-center rounded-lg bg-primary-600 px-4 py-2 text-white font-semibold hover:bg-primary-700 transition text-sm"
                   >
-                    {loading ? 'Loading...' : isFollowing ? 'Unfollow' : 'Follow'}
-                  </button>
+                    View Club
+                  </Link>
                 </div>
-
-                {/* Club Stats */}
-                <div className="grid grid-cols-3 gap-4 text-center text-sm text-gray-600 mb-4">
-                  <div>
-                    <div className="font-semibold text-lg">{club.rating?.toFixed(1) || '4.8'}</div>
-                    <div>Rating</div>
-                  </div>
-                  <div>
-                    <div className="font-semibold text-lg">{club.membersCount || 12}</div>
-                    <div>Members</div>
-                  </div>
-                  <div>
-                    <div className="font-semibold text-lg">{club.eventsCount || 3}</div>
-                    <div>Events</div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-3 gap-4 text-center text-sm text-gray-600 mb-4">
-                  <div>
-                    <div className="font-semibold text-lg">{club.awardsCount || 120}</div>
-                    <div>Awards</div>
-                  </div>
-                  <div>
-                    <div className="font-semibold text-lg">{club.followersCount || 0}</div>
-                    <div>Followers</div>
-                  </div>
-                  <div>
-                    <div className="font-semibold text-lg">{club.membersCount || 12}</div>
-                    <div>Members</div>
-                  </div>
-                </div>
-
-                {/* Next Event */}
-                <div className="mb-4">
-                  <div className="text-sm font-semibold text-gray-700">Next Event</div>
-                  <div className="text-gray-600">
-                    {club.nextEventName || 'Tech Workshop: React Basics'}
-                  </div>
-                  <div className="text-gray-500 text-xs">
-                    {club.nextEventDate || 'Tuesday, April 15'}
-                  </div>
-                </div>
-
-                {/* Member Since */}
-                <div className="mb-4 text-sm text-gray-500">
-                  Member Since: {club.memberSince || 'September 2024'}
-                </div>
-
-                {/* View Club Button */}
-                <button
-                  className="mt-auto inline-block w-full text-center rounded-lg bg-primary-600 px-4 py-2 text-white font-semibold hover:bg-primary-700 transition"
-                  onClick={() => alert(`Navigate to club ${club.name} details page`)}
-                >
-                  View Club
-                </button>
               </motion.div>
             );
           })

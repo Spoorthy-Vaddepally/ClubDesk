@@ -5,5 +5,14 @@ service cloud.firestore {
     match /{document=**} {
       allow read, write: if true;
     }
+    
+    // Explicitly allow updates for users and clubs
+    match /users/{userId} {
+      allow read, write: if true;
+    }
+    
+    match /clubs/{clubId} {
+      allow read, write: if true;
+    }
   }
 }

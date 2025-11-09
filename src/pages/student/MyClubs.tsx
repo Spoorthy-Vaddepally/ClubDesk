@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { 
@@ -12,63 +12,123 @@ import {
   MessageSquare,
   Bell
 } from 'lucide-react';
+import { db } from '../../firebase';
+import { collection, getDocs, query, where, doc, getDoc } from 'firebase/firestore';
+import { useAuth } from '../../contexts/AuthContext';
 
-// Mock data
-const myClubs = [
-  {
-    id: 1,
-    name: 'Coding Club',
-    category: 'Technology',
-    role: 'Member',
-    joinDate: '2024-09-15',
-    events: 12,
-    nextEvent: 'Tech Workshop: React Basics',
-    nextEventDate: '2025-04-15',
-    achievements: 3,
-    avatar: 'https://images.pexels.com/photos/4709285/pexels-photo-4709285.jpeg',
-    members: 120,
-    rating: 4.8
-  },
-  {
-    id: 2,
-    name: 'Photography Club',
-    category: 'Arts',
-    role: 'Active Member',
-    joinDate: '2023-11-20',
-    events: 24,
-    nextEvent: 'Photography Walk',
-    nextEventDate: '2025-04-20',
-    achievements: 5,
-    avatar: 'https://images.pexels.com/photos/1092671/pexels-photo-1092671.jpeg',
-    members: 85,
-    rating: 4.6
-  },
-  {
-    id: 3,
-    name: 'AI Research Society',
-    category: 'Technology',
-    role: 'New Member',
-    joinDate: '2025-02-10',
-    events: 3,
-    nextEvent: 'Industry Expert Talk: Future of AI',
-    nextEventDate: '2025-04-18',
-    achievements: 1,
-    avatar: 'https://images.pexels.com/photos/8386434/pexels-photo-8386434.jpeg',
-    members: 72,
-    rating: 4.7
-  }
-];
+interface Club {
+  id: string;
+  name: string;
+  category: string;
+  role: string;
+  joinDate: string;
+  events: number;
+  nextEvent: string;
+  nextEventDate: string;
+  achievements: number;
+  avatar?: string;
+  logoURL?: string;
+  bannerURL?: string;
+  members: number;
+  rating: number;
+}
+
+interface MembershipData {
+  role?: string;
+  joinDate?: string;
+  events?: number;
+  nextEvent?: string;
+  nextEventDate?: string;
+  achievements?: number;
+}
 
 const MyClubs = () => {
+  const { user } = useAuth();
+  const [clubs, setClubs] = useState<Club[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
+  const [loading, setLoading] = useState(true);
+
+  // Fetch clubs data from Firebase
+  useEffect(() => {
+    const fetchMyClubs = async () => {
+      if (!user) return;
+      
+      setLoading(true);
+      try {
+        // Get the list of club IDs that the user is a member of
+        // This would typically be stored in the user's document
+        const userDocRef = doc(db, 'users', user.uid);
+        const userDoc = await getDoc(userDocRef);
+        
+        let clubIds: string[] = [];
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          clubIds = userData.clubs || []; // Assuming clubs array contains club IDs
+        }
+        
+        // Fetch club details for each club ID
+        const clubsData: Club[] = [];
+        
+        for (const clubId of clubIds) {
+          const clubDocRef = doc(db, 'clubs', clubId);
+          const clubDoc = await getDoc(clubDocRef);
+          
+          if (clubDoc.exists()) {
+            const clubData = clubDoc.data();
+            // Get membership info for this user in this club
+            const membershipDocRef = doc(db, 'clubs', clubId, 'members', user.uid);
+            const membershipDoc = await getDoc(membershipDocRef);
+            
+            let membershipData: MembershipData = {};
+            if (membershipDoc.exists()) {
+              membershipData = membershipDoc.data() as MembershipData;
+            }
+            
+            clubsData.push({
+              id: clubId,
+              name: clubData.name || 'Unknown Club',
+              category: clubData.category || 'General',
+              role: membershipData.role || 'Member',
+              joinDate: membershipData.joinDate || new Date().toISOString(),
+              events: membershipData.events || 0,
+              nextEvent: membershipData.nextEvent || 'No upcoming events',
+              nextEventDate: membershipData.nextEventDate || '',
+              achievements: membershipData.achievements || 0,
+              avatar: clubData.logoURL || '',
+              logoURL: clubData.logoURL || '',
+              bannerURL: clubData.bannerURL || '',
+              members: clubData.membersCount || 0,
+              rating: clubData.rating || 4.5
+            });
+          }
+        }
+        
+        setClubs(clubsData);
+      } catch (error) {
+        console.error('Error fetching my clubs:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchMyClubs();
+  }, [user]);
 
   // Filter clubs
-  const filteredClubs = myClubs.filter(club => {
+  const filteredClubs = clubs.filter(club => {
     const matchesSearch = club.name.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = categoryFilter === 'all' || club.category === categoryFilter;
     return matchesSearch && matchesCategory;
   });
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
@@ -129,101 +189,150 @@ const MyClubs = () => {
 
       {/* Clubs Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredClubs.map((club) => (
-          <motion.div
-            key={club.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}
-            className="bg-white rounded-xl shadow-sm overflow-hidden hover:shadow-md transition-shadow duration-300"
-          >
-            <div className="relative h-48">
-              <img 
-                src={club.avatar} 
-                alt={club.name} 
-                className="w-full h-full object-cover"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
-              <div className="absolute bottom-0 left-0 right-0 p-4">
-                <div className="flex justify-between items-center">
-                  <h3 className="text-xl font-bold text-white">{club.name}</h3>
+        {filteredClubs.length === 0 ? (
+          <div className="col-span-full text-center py-12">
+            <Users size={48} className="mx-auto text-gray-400" />
+            <h3 className="mt-4 text-lg font-medium text-gray-900">No club memberships yet</h3>
+            <p className="mt-1 text-gray-500">Join clubs to start participating in events and activities.</p>
+            <div className="mt-6">
+              <Link
+                to="/student/clubs"
+                className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700"
+              >
+                Discover Clubs
+              </Link>
+            </div>
+          </div>
+        ) : (
+          filteredClubs.map((club) => (
+            <motion.div
+              key={club.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3 }}
+              className="bg-white rounded-xl shadow-sm overflow-hidden hover:shadow-md transition-shadow duration-300"
+            >
+              <div className="relative h-48">
+                {club.bannerURL ? (
+                  <img 
+                    src={club.bannerURL} 
+                    alt={club.name} 
+                    className="w-full h-full object-cover"
+                  />
+                ) : club.avatar ? (
+                  <img 
+                    src={club.avatar} 
+                    alt={club.name} 
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center">
+                    <span className="text-4xl font-bold text-white">{club.name.charAt(0)}</span>
+                  </div>
+                )}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+                
+                {/* Logo */}
+                <div className="absolute bottom-0 left-4 transform translate-y-1/2">
+                  {club.logoURL ? (
+                    <img 
+                      src={club.logoURL} 
+                      alt={club.name} 
+                      className="w-16 h-16 rounded-full border-4 border-white shadow-lg object-cover"
+                    />
+                  ) : (
+                    <div className="w-16 h-16 rounded-full border-4 border-white shadow-lg bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center text-white font-bold text-xl">
+                      {club.name.charAt(0)}
+                    </div>
+                  )}
+                </div>
+                
+                <div className="absolute bottom-4 right-4">
                   <div className="flex items-center bg-white bg-opacity-20 backdrop-blur-sm rounded-full px-2 py-1">
                     <Star size={14} className="text-yellow-400" />
                     <span className="ml-1 text-white text-sm">{club.rating}</span>
                   </div>
                 </div>
-                <div className="mt-1">
-                  <span className="inline-block text-xs bg-primary-500 text-white px-2 py-0.5 rounded-full">
-                    {club.category}
-                  </span>
-                  <span className="inline-block ml-2 text-xs bg-white/20 text-white px-2 py-0.5 rounded-full backdrop-blur-sm">
-                    {club.role}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div className="p-6">
-              <div className="grid grid-cols-3 gap-4 mb-6">
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-gray-900">{club.events}</div>
-                  <div className="text-xs text-gray-500">Events</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-gray-900">{club.achievements}</div>
-                  <div className="text-xs text-gray-500">Awards</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-gray-900">{club.members}</div>
-                  <div className="text-xs text-gray-500">Members</div>
-                </div>
               </div>
 
-              <div className="space-y-4">
-                <div>
-                  <div className="text-sm text-gray-500">Next Event</div>
-                  <div className="mt-1 flex items-center">
-                    <Calendar size={16} className="text-gray-400" />
-                    <span className="ml-2 text-sm font-medium text-gray-900">{club.nextEvent}</span>
-                  </div>
-                  <div className="mt-1 text-xs text-gray-500">
-                    {new Date(club.nextEventDate).toLocaleDateString('en-US', {
-                      weekday: 'long',
-                      month: 'long',
-                      day: 'numeric'
-                    })}
+              <div className="pt-10 p-6">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h3 className="text-xl font-bold text-gray-900">{club.name}</h3>
+                    <div className="mt-1">
+                      <span className="inline-block text-xs bg-primary-500 text-white px-2 py-0.5 rounded-full">
+                        {club.category}
+                      </span>
+                      <span className="inline-block ml-2 text-xs bg-white/20 text-white px-2 py-0.5 rounded-full backdrop-blur-sm">
+                        {club.role}
+                      </span>
+                    </div>
                   </div>
                 </div>
 
-                <div>
-                  <div className="text-sm text-gray-500">Member Since</div>
-                  <div className="mt-1 text-sm font-medium text-gray-900">
-                    {new Date(club.joinDate).toLocaleDateString('en-US', {
-                      month: 'long',
-                      year: 'numeric'
-                    })}
+                <div className="grid grid-cols-3 gap-4 my-6">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-gray-900">{club.events}</div>
+                    <div className="text-xs text-gray-500">Events</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-gray-900">{club.achievements}</div>
+                    <div className="text-xs text-gray-500">Awards</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-gray-900">{club.members}</div>
+                    <div className="text-xs text-gray-500">Members</div>
                   </div>
                 </div>
-              </div>
 
-              <div className="mt-6 flex space-x-3">
-                <Link
-                  to={`/student/clubs/${club.id}`}
-                  className="flex-1 inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700"
-                >
-                  View Club
-                  <ArrowRight size={16} className="ml-2" />
-                </Link>
-                <button className="inline-flex items-center justify-center p-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
-                  <MessageSquare size={16} />
-                </button>
-                <button className="inline-flex items-center justify-center p-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
-                  <Bell size={16} />
-                </button>
+                <div className="space-y-4">
+                  <div>
+                    <div className="text-sm text-gray-500">Next Event</div>
+                    <div className="mt-1 flex items-center">
+                      <Calendar size={16} className="text-gray-400" />
+                      <span className="ml-2 text-sm font-medium text-gray-900">{club.nextEvent}</span>
+                    </div>
+                    {club.nextEventDate && (
+                      <div className="mt-1 text-xs text-gray-500">
+                        {new Date(club.nextEventDate).toLocaleDateString('en-US', {
+                          weekday: 'long',
+                          month: 'long',
+                          day: 'numeric'
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  <div>
+                    <div className="text-sm text-gray-500">Member Since</div>
+                    <div className="mt-1 text-sm font-medium text-gray-900">
+                      {new Date(club.joinDate).toLocaleDateString('en-US', {
+                        month: 'long',
+                        year: 'numeric'
+                      })}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-6 flex space-x-3">
+                  <Link
+                    to={`/student/clubs/${club.id}`}
+                    className="flex-1 inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700"
+                  >
+                    View Club
+                    <ArrowRight size={16} className="ml-2" />
+                  </Link>
+                  <button className="inline-flex items-center justify-center p-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                    <MessageSquare size={16} />
+                  </button>
+                  <button className="inline-flex items-center justify-center p-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                    <Bell size={16} />
+                  </button>
+                </div>
               </div>
-            </div>
-          </motion.div>
-        ))}
+            </motion.div>
+          ))
+        )}
       </div>
 
       {/* Quick Stats */}
@@ -235,7 +344,9 @@ const MyClubs = () => {
             </div>
             <div className="ml-4">
               <h3 className="text-sm font-medium text-gray-500">Total Events Attended</h3>
-              <p className="text-2xl font-bold text-gray-900">39</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {clubs.reduce((total, club) => total + club.events, 0)}
+              </p>
             </div>
           </div>
         </div>
@@ -247,7 +358,9 @@ const MyClubs = () => {
             </div>
             <div className="ml-4">
               <h3 className="text-sm font-medium text-gray-500">Achievements</h3>
-              <p className="text-2xl font-bold text-gray-900">9</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {clubs.reduce((total, club) => total + club.achievements, 0)}
+              </p>
             </div>
           </div>
         </div>
@@ -259,7 +372,7 @@ const MyClubs = () => {
             </div>
             <div className="ml-4">
               <h3 className="text-sm font-medium text-gray-500">Active Memberships</h3>
-              <p className="text-2xl font-bold text-gray-900">3</p>
+              <p className="text-2xl font-bold text-gray-900">{clubs.length}</p>
             </div>
           </div>
         </div>
